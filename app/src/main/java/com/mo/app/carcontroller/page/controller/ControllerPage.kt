@@ -9,22 +9,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,10 +38,68 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.mo.app.carcontroller.page.device.DeviceViewModel
+import com.mo.app.carcontroller.util.PicoNetwork
+import timber.log.Timber
 
 @Composable
-fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel) {
-    val logs = remember{ mutableStateListOf<String>() }
+fun ControllerPage(navController: NavHostController, viewModel: ControllerViewModel) {
+    val scrollState = rememberLazyListState()
+    var isStarted by remember { mutableStateOf(false) }
+
+    var left by remember { mutableStateOf(false) }
+    var right by remember { mutableStateOf(false) }
+    var up by remember { mutableStateOf(false) }
+    var down by remember { mutableStateOf(false) }
+    var stop by remember { mutableStateOf(false) }
+    var center by remember { mutableStateOf(false) }
+
+    LaunchedEffect(viewModel.uiState.logs.size) {
+        scrollState.animateScrollToItem(viewModel.uiState.logs.size)
+    }
+    LaunchedEffect(isStarted) {
+        if (isStarted) {
+            viewModel.controllerChannel.send(ControllerIntent.Connect)
+            isStarted = false
+        }
+    }
+    LaunchedEffect(left) {
+        if (left) {
+            viewModel.controllerChannel.send(ControllerIntent.Left)
+            left = false
+        }
+    }
+    LaunchedEffect(right) {
+        if (right) {
+            viewModel.controllerChannel.send(ControllerIntent.Right)
+            right = false
+        }
+    }
+    LaunchedEffect(up) {
+        if (up) {
+            viewModel.controllerChannel.send(ControllerIntent.Forward)
+            up = false
+        }
+    }
+    LaunchedEffect(down) {
+        if (down) {
+            viewModel.controllerChannel.send(ControllerIntent.Backward)
+            down = false
+        }
+    }
+    LaunchedEffect(stop) {
+        if (stop) {
+            viewModel.controllerChannel.send(ControllerIntent.Stop)
+            stop = false
+        }
+    }
+    LaunchedEffect(center) {
+        if (center) {
+            viewModel.controllerChannel.send(ControllerIntent.Center)
+            center = false
+        }
+    }
+
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier
@@ -61,7 +124,7 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
                     .padding(start = 270.dp, top = 20.dp, bottom = 20.dp)
                     .size(30.dp)
                     .clickable {
-                        logs.add("try to connect to 192.168.6.31:6666")
+                        isStarted = true
                     }
             )
         }
@@ -70,13 +133,20 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
             Modifier
                 .fillMaxSize()
                 .padding(20.dp)
-                .weight(0.4f)) {
-            LogWindow(logs)
+                .weight(0.4f)
+        ) {
+            LazyColumn(state = scrollState) {
+                items(viewModel.uiState.logs) { log ->
+                    Text(text = log)
+                }
+            }
+
         }
         Column(
             Modifier
                 .fillMaxSize()
-                .weight(0.5f)) {
+                .weight(0.5f)
+        ) {
             Card(
                 modifier = Modifier
                     .fillMaxSize()
@@ -84,7 +154,9 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize().weight(0.5f),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(0.5f),
                 ) {
                     // 方向按键
                     Row(
@@ -99,7 +171,7 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
                             modifier = Modifier
                                 .size(80.dp)
                                 .clickable {
-                                    logs.add("left")
+                                    left = true
                                 }
                         )
                         Icon(
@@ -108,7 +180,7 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
                             modifier = Modifier
                                 .size(80.dp)
                                 .clickable {
-                                    logs.add("right")
+                                    right = true
                                 }
                         )
 
@@ -126,7 +198,7 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
                             modifier = Modifier
                                 .size(80.dp)
                                 .clickable {
-                                    logs.add("up")
+                                    up = true
                                 }
                         )
                         Icon(
@@ -135,33 +207,42 @@ fun ControllerPage(navController: NavHostController, viewModel2: DeviceViewModel
                             modifier = Modifier
                                 .size(80.dp)
                                 .clickable {
-                                    logs.add("down")
+                                    down = true
                                 }
                         )
-                        }
-                    }
 
+                    }
+                    Icon(Icons.Filled.Refresh, contentDescription = "center", modifier = Modifier
+                        .size(50.dp)
+                        .clickable {
+                            center = true
+                        })
+
+                    Icon(Icons.Filled.Close, contentDescription = "stop", modifier = Modifier
+                        .padding(top = 300.dp, start = 250.dp)
+                        .size(50.dp)
+                        .clickable {
+                            stop = true
+                        })
                 }
 
             }
 
         }
+
     }
+}
 
 @Composable
 fun LogWindow(logs: List<String>) {
-    LazyColumn {
-        items(logs) { log ->
-            Text(text = log)
-        }
-    }
+
 }
 
 @Preview
 @Composable
 fun ControllerPagePreview() {
 
-    val viewModel = DeviceViewModel()
+    val viewModel = ControllerViewModel()
     val navController = rememberNavController()
     ControllerPage(navController, viewModel)
 }

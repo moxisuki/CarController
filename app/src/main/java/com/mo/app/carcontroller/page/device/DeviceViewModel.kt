@@ -54,8 +54,7 @@ class DeviceViewModel:ViewModel() {
 
     private val devicesFlow: Flow<Map<String,Int>> = flow {
         val list = mutableMapOf<String,Int>()
-        list.put("192.168.31.65",6666)
-        list.put("192.168.31.23",7777)
+        list.put("192.168.31.139",6666)
         emit(list)
     }
     private fun loadDevices() {

@@ -37,16 +37,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.mo.app.carcontroller.data.DeviceInfo
 import timber.log.Timber
 
 @Composable
-fun AddDevice(viewModel: DeviceViewModel) {
-    LaunchedEffect(key1 = true) {
-        viewModel.deviceChannel.send(DeviceIntent.AddDevice("1",2222))
-    }
-}
-@Composable
-fun DevicesPage(navHostController: NavHostController, viewModel: DeviceViewModel) {
+fun DevicesPage(navHostController: NavHostController, viewModel: DeviceViewModel,callback:(DeviceInfo)->Unit){
+
     val viewState = viewModel.uiState
 
     var addDevice by remember { mutableStateOf(false) }
@@ -126,7 +122,6 @@ fun DevicesPage(navHostController: NavHostController, viewModel: DeviceViewModel
                                 action,ip2,port2->
                                 ip = TextFieldValue(ip2)
                                 port = TextFieldValue(port2)
-                                Timber.d("action:$action,ip:$ip2,port:$port2")
                                 when(action){
                                     "edit"->{
                                         deleteDevice = true
@@ -137,6 +132,7 @@ fun DevicesPage(navHostController: NavHostController, viewModel: DeviceViewModel
                                     }
                                     "connect"->{
                                         navHostController.navigate("controllerPage")
+                                        callback(DeviceInfo(ip2,port2.toInt()))
                                     }
                                 }
                             }
@@ -264,5 +260,5 @@ fun DevicesPagePreview() {
     val viewModel = DeviceViewModel()
     val navController = rememberNavController()
 
-    DevicesPage(navController, viewModel)
+    DevicesPage(navController, viewModel){}
 }
